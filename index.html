@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Sound of Light</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #faf9f6;
+  color: #222;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+h1 {
+  font-size: clamp(40px, 6vw, 68px);
+  margin: 0 0 16px;
+}
+
+p {
+  font-size: clamp(20px, 3vw, 30px);
+  margin: 12px 0;
+}
+
+.colours {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+  max-width: 800px;
+  margin: 35px auto;
+}
+
+.colour {
+  display: block;
+  width: 100%;
+  height: clamp(90px, 15vw, 150px);
+  border: 5px solid transparent;
+  border-radius: 20px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.colour.selected {
+  border-color: #222;
+}
+
+#name {
+  font-size: clamp(32px, 5vw, 48px);
+  margin: 10px 0;
+}
+
+#frequency {
+  font-size: clamp(24px, 3vw, 32px);
+  margin: 10px 0 20px;
+}
+
+#play {
+  padding: 22px 44px;
+  font-size: clamp(22px, 3vw, 30px);
+  background: #222;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  margin: 15px 0;
+}
+
+button:focus-visible {
+  outline: 4px solid #5267e8;
+  outline-offset: 4px;
+}
+
+@media (max-width: 500px) {
+  body {
+    padding: 16px;
+  }
+
+  .colours {
+    gap: 10px;
+    margin: 25px auto;
+  }
+
+  .colour {
+    height: 75px;
+    border-radius: 14px;
+  }
+}
+
+@media (max-height: 650px) and (min-width: 501px) {
+  body {
+    justify-content: flex-start;
+    padding-top: 12px;
+  }
+
+  h1 {
+    font-size: 38px;
+  }
+
+  .colours {
+    margin: 15px auto;
+  }
+
+  .colour {
+    height: 75px;
+  }
+
+  #name {
+    font-size: 28px;
+  }
+
+  #frequency {
+    font-size: 20px;
+    margin: 5px 0;
+  }
+
+  #play {
+    padding: 12px 28px;
+    font-size: 20px;
+  }
+}
+</style>
+</head>
+
+<body>
+<h1>The Sound of Light</h1>
+<p>Choose a colour and hear its sound.</p>
+
+<div class="colours" id="colours"></div>
+
+<h2 id="name">Red</h2>
+<p id="frequency">220 Hz</p>
+
+<button id="play">▶ Play sound</button>
+
+<script>
+const colours = [
+  { name: "Red", hex: "#ff595e", hz: 220 },
+  { name: "Orange", hex: "#ff924c", hz: 293 },
+  { name: "Yellow", hex: "#ffca3a", hz: 349 },
+  { name: "Green", hex: "#8ac926", hz: 440 },
+  { name: "Cyan", hex: "#52b7d8", hz: 494 },
+  { name: "Blue", hex: "#5267e8", hz: 587 },
+  { name: "Violet", hex: "#9b5de5", hz: 698 },
+  { name: "Pink", hex: "#f15bb5", hz: 392 }
+];
+
+let selected = colours[0];
+let audio = null;
+let oscillator = null;
+let volume = null;
+
+const grid = document.getElementById("colours");
+const playButton = document.getElementById("play");
+
+function stopSound() {
+  if (oscillator) {
+    oscillator.onended = null;
+    oscillator.stop();
+    oscillator.disconnect();
+    oscillator = null;
+  }
+
+  if (volume) {
+    volume.disconnect();
+    volume = null;
+  }
+
+  playButton.textContent = "▶ Play sound";
+}
+
+async function playSound() {
+  const AudioContextClass =
+    window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContextClass) {
+    alert("Your browser does not support audio.");
+    return;
+  }
+
+  if (!audio) {
+    audio = new AudioContextClass();
+  }
+
+  await audio.resume();
+
+  stopSound();
+
+  oscillator = audio.createOscillator();
+  volume = audio.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.value = selected.hz;
+  volume.gain.value = 0.12;
+
+  oscillator.connect(volume);
+  volume.connect(audio.destination);
+  oscillator.start();
+
+  playButton.textContent = "■ Stop sound";
+}
+
+colours.forEach(colour => {
+  const button = document.createElement("button");
+
+  button.className = "colour";
+  button.style.backgroundColor = colour.hex;
+  button.title = colour.name;
+  button.setAttribute("aria-label", colour.name);
+
+  button.addEventListener("click", () => {
+    selected = colour;
+
+    document.getElementById("name").textContent = colour.name;
+    document.getElementById("frequency").textContent =
+      colour.hz + " Hz";
+
+    document.querySelectorAll(".colour").forEach(b => {
+      b.classList.remove("selected");
+    });
+
+    button.classList.add("selected");
+
+    if (oscillator) {
+      playSound();
+    }
+  });
+
+  grid.appendChild(button);
+});
+
+grid.firstElementChild.classList.add("selected");
+
+playButton.addEventListener("click", () => {
+  if (oscillator) {
+    stopSound();
+  } else {
+    playSound();
+  }
+});
+</script>
+</body>
+</html>
